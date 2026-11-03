@@ -62,13 +62,6 @@ No build step. Open `index.html` in a browser, or serve the folder:
 python3 -m http.server 8000
 ```
 
-## Deploy to GitHub Pages
-
-1. Push `index.html` and this README to a repo named `stepwise`.
-2. In the repo, go to **Settings → Pages**.
-3. Under **Build and deployment**, choose **Deploy from a branch**, select `main` and `/ (root)`, then save.
-4. Your site will be live at `https://<your-username>.github.io/stepwise/` within a minute or two.
-
 ## Ideas for next steps
 
 - Bidirectional search and Jump Point Search
