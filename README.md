@@ -2,9 +2,7 @@
 
 An interactive visualizer for sorting and pathfinding algorithms. Watch each algorithm work one step at a time, with live counts of the work it does.
 
-**Live demo:** `https://<your-username>.github.io/stepwise/` (replace after enabling GitHub Pages)
-
-<!-- Add a screenshot or GIF here: ![Stepwise screenshot](screenshot.png) -->
+**Live demo:** `https://<anred-netizen>.github.io/stepwise/`
 
 ## Features
 
