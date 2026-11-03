@@ -1,0 +1,548 @@
+<title>Stepwise</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky tab header, then one panel at a time: controls on top, canvas left, stats and complexity right. */
+:root{
+  --font-display:'Bricolage Grotesque','Avenir Next','Segoe UI',system-ui,sans-serif;
+  --font-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --bg:#F1F4F9; --surface:#FFFFFF; --ink:#131A26; --muted:#586376; --line:#D6DDE8;
+  --accent:#2A55E8; --accent-ink:#FFFFFF;
+  --bar:#8499C9; --cmp:#E5484D; --swap:#F2A20F; --done:#16A34A;
+  --wall:#1C2536; --mud:#C8A56A; --visit:#5E83F0; --open:#B7C6F7; --path:#F2A20F;
+  --start:#16A34A; --end:#E5484D;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D121A; --surface:#151B26; --ink:#E7EBF3; --muted:#92A0B6; --line:#263145;
+    --accent:#7C99FF; --accent-ink:#0D121A;
+    --bar:#566B9B; --cmp:#FF6B70; --swap:#F5B53D; --done:#3FCB7A;
+    --wall:#A9B5CA; --mud:#8A6D3C; --visit:#5E83F0; --open:#33447A; --path:#F5B53D;
+    --start:#3FCB7A; --end:#FF6B70; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D121A; --surface:#151B26; --ink:#E7EBF3; --muted:#92A0B6; --line:#263145;
+  --accent:#7C99FF; --accent-ink:#0D121A;
+  --bar:#566B9B; --cmp:#FF6B70; --swap:#F5B53D; --done:#3FCB7A;
+  --wall:#A9B5CA; --mud:#8A6D3C; --visit:#5E83F0; --open:#33447A; --path:#F5B53D;
+  --start:#3FCB7A; --end:#FF6B70; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+.wrap{max-width:1120px;margin:0 auto}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding:28px 0 18px}
+h1{font-family:var(--font-display);font-weight:800;font-size:clamp(2rem,5vw,3rem);line-height:1;letter-spacing:-.02em;margin:0}
+.tag{color:var(--muted);margin:8px 0 0;max-width:46ch}
+nav.tabs{display:flex;gap:4px;border:1px solid var(--line);background:var(--surface);padding:4px;border-radius:10px}
+nav.tabs a{padding:8px 16px;border-radius:7px;color:var(--muted);text-decoration:none;font-weight:600;font-size:.9rem}
+nav.tabs a[aria-current="page"]{background:var(--accent);color:var(--accent-ink)}
+nav.tabs a:focus-visible,.btn:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:end;padding:14px 0}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.lbl{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:150px}
+input[type=range]{width:150px;accent-color:var(--accent);height:34px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:600;font-size:.9rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);min-width:92px}
+.btn[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}
+.canvas-box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+canvas{display:block;width:100%;border-radius:6px}
+#sortCv{height:clamp(240px,48vh,380px)}
+#pathCv{touch-action:none;cursor:crosshair}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:10px 4px 2px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+aside{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.card h2{font-family:var(--font-display);font-size:1.15rem;margin:0 0 4px}
+.card p{margin:0 0 10px;color:var(--muted);font-size:.88rem}
+dl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:0}
+dt{color:var(--muted);font-size:.85rem}
+dd{margin:0;font-family:var(--font-mono);font-size:.88rem;text-align:right;font-variant-numeric:tabular-nums}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+.stat b{display:block;font-family:var(--font-mono);font-size:1.25rem;font-weight:500;font-variant-numeric:tabular-nums}
+.stat span{font-size:.72rem;color:var(--muted);font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+.status{font-weight:600}
+.ok{color:var(--done)} .bad{color:var(--cmp)}
+.tablewrap{overflow-x:auto;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:.88rem;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:0}
+.opt{color:var(--done);font-weight:600}
+.about{margin-top:44px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.about h3{font-family:var(--font-display);font-size:1.05rem;margin:0 0 6px}
+.about p{margin:0;color:var(--muted);font-size:.9rem}
+.about code{font-family:var(--font-mono);font-size:.82rem;color:var(--ink)}
+.hint{font-size:.82rem;color:var(--muted);margin:6px 2px 0}
+@media (max-width:860px){.stage{grid-template-columns:minmax(0,1fr)}.about{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){select{min-width:0;width:100%}.field{flex:1 1 140px}input[type=range]{width:100%}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Stepwise</h1>
+      <p class="tag">Watch sorting and pathfinding algorithms run one step at a time, with live counts of the work each one does.</p>
+    </div>
+    <nav class="tabs" aria-label="Visualizers">
+      <a href="#sorting" id="tab-sorting">Sorting</a>
+      <a href="#pathfinding" id="tab-pathfinding">Pathfinding</a>
+    </nav>
+  </header>
+
+  <!-- SORTING -->
+  <section id="panel-sorting" class="panel" aria-label="Sorting visualizer">
+    <div class="controls">
+      <div class="field"><label for="sAlgo">Algorithm</label>
+        <select id="sAlgo">
+          <option value="bubble">Bubble sort</option><option value="insertion">Insertion sort</option>
+          <option value="selection">Selection sort</option><option value="merge">Merge sort</option>
+          <option value="quick" selected>Quick sort</option><option value="heap">Heap sort</option>
+        </select></div>
+      <div class="field"><label for="sKind">Input</label>
+        <select id="sKind">
+          <option value="random">Random</option><option value="nearly">Nearly sorted</option>
+          <option value="reversed">Reversed</option><option value="few">Few unique values</option>
+        </select></div>
+      <div class="field"><label for="sSize">Size <span id="sSizeV">48</span></label><input id="sSize" type="range" min="8" max="160" value="48"></div>
+      <div class="field"><label for="sSpeed">Speed</label><input id="sSpeed" type="range" min="1" max="100" value="70"></div>
+      <div class="btns">
+        <button class="btn primary" id="sRun">Run</button>
+        <button class="btn" id="sStep">Step</button>
+        <button class="btn" id="sReset">Reset</button>
+        <button class="btn" id="sNew">New array</button>
+      </div>
+    </div>
+    <div class="stage">
+      <div>
+        <div class="canvas-box">
+          <canvas id="sortCv" role="img" aria-label="Bars representing the array being sorted" tabindex="0"></canvas>
+          <div class="legend">
+            <span><i style="background:var(--bar)"></i>Value</span>
+            <span><i style="background:var(--cmp)"></i>Comparing</span>
+            <span><i style="background:var(--swap)"></i>Swapped / written</span>
+            <span><i style="background:var(--done)"></i>Sorted</span>
+          </div>
+        </div>
+        <p class="hint">Reset puts the same input back, so you can run another algorithm on identical data and compare the counts.</p>
+      </div>
+      <aside>
+        <div class="card">
+          <div class="stat">
+            <div><b id="sCmp">0</b><span>Comparisons</span></div>
+            <div><b id="sWr">0</b><span>Array writes</span></div>
+          </div>
+          <dl style="margin-top:12px"><dt>Status</dt><dd class="status" id="sStatus">Ready</dd></dl>
+        </div>
+        <div class="card">
+          <h2 id="sName"></h2>
+          <p id="sNote"></p>
+          <dl>
+            <dt>Best case</dt><dd id="sBest"></dd>
+            <dt>Average</dt><dd id="sAvg"></dd>
+            <dt>Worst case</dt><dd id="sWorst"></dd>
+            <dt>Extra space</dt><dd id="sSpace"></dd>
+            <dt>Stable</dt><dd id="sStable"></dd>
+          </dl>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- PATHFINDING -->
+  <section id="panel-pathfinding" class="panel" aria-label="Pathfinding visualizer" hidden>
+    <div class="controls">
+      <div class="field"><label for="pAlgo">Algorithm</label>
+        <select id="pAlgo">
+          <option value="astar" selected>A* search</option><option value="dijkstra">Dijkstra</option>
+          <option value="bfs">Breadth-first</option><option value="dfs">Depth-first</option>
+          <option value="greedy">Greedy best-first</option>
+        </select></div>
+      <div class="field"><span class="lbl">Draw</span>
+        <div class="btns" role="group" aria-label="Draw mode">
+          <button class="btn" data-mode="1" aria-pressed="true">Wall</button>
+          <button class="btn" data-mode="2" aria-pressed="false">Mud (cost 5)</button>
+          <button class="btn" data-mode="0" aria-pressed="false">Erase</button>
+        </div></div>
+      <div class="field"><label for="pSpeed">Speed</label><input id="pSpeed" type="range" min="1" max="100" value="60"></div>
+      <div class="btns">
+        <button class="btn primary" id="pRun">Run</button>
+        <button class="btn" id="pStep">Step</button>
+        <button class="btn" id="pClear">Clear path</button>
+        <button class="btn" id="pMaze">Maze</button>
+        <button class="btn" id="pRandom">Random walls</button>
+        <button class="btn" id="pWipe">Clear board</button>
+      </div>
+    </div>
+    <div class="stage">
+      <div>
+        <div class="canvas-box">
+          <canvas id="pathCv" role="img" aria-label="Grid for drawing walls and running pathfinding"></canvas>
+          <div class="legend">
+            <span><i style="background:var(--start);border-radius:50%"></i>Start (drag)</span>
+            <span><i style="background:var(--end);border-radius:50%"></i>Goal (drag)</span>
+            <span><i style="background:var(--wall)"></i>Wall</span>
+            <span><i style="background:var(--mud)"></i>Mud</span>
+            <span><i style="background:var(--open)"></i>Frontier</span>
+            <span><i style="background:var(--visit)"></i>Explored</span>
+            <span><i style="background:var(--path)"></i>Path</span>
+          </div>
+        </div>
+        <p class="hint">Paint walls and mud on the grid, then run. Dijkstra and A* route around mud; breadth-first and depth-first treat every cell as cost 1.</p>
+      </div>
+      <aside>
+        <div class="card">
+          <div class="stat">
+            <div><b id="pExp">0</b><span>Cells explored</span></div>
+            <div><b id="pLen">-</b><span>Path length</span></div>
+            <div><b id="pCost">-</b><span>Path cost</span></div>
+            <div><b id="pTime">-</b><span>Compute ms</span></div>
+          </div>
+          <dl style="margin-top:12px"><dt>Status</dt><dd class="status" id="pStatus">Ready</dd></dl>
+        </div>
+        <div class="card">
+          <h2 id="pName"></h2>
+          <p id="pNote"></p>
+          <dl>
+            <dt>Time</dt><dd id="pTimeC"></dd>
+            <dt>Shortest path</dt><dd id="pOpt"></dd>
+            <dt>Uses mud cost</dt><dd id="pW"></dd>
+          </dl>
+        </div>
+        <button class="btn" id="pCompare">Compare all five on this board</button>
+      </aside>
+    </div>
+    <div class="tablewrap" id="cmpWrap" hidden></div>
+  </section>
+
+  <section class="about" aria-label="How it is built">
+    <div><h3>Algorithms as generators</h3><p>Each algorithm is a JavaScript <code>function*</code> that yields one event per comparison, swap or visited cell. The renderer never touches algorithm code, so pausing, stepping and speed control come for free.</p></div>
+    <div><h3>Counted, not guessed</h3><p>Comparisons and writes are tallied from the yielded events, and every finished sort is checked against a sortedness test before the bars turn green.</p></div>
+    <div><h3>No dependencies</h3><p>Plain HTML, CSS and Canvas 2D. A binary heap drives Dijkstra and A*, and a Compare button runs all five searches on your board and times them.</p></div>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const dpr=()=>Math.min(window.devicePixelRatio||1,2);
+const sps=v=>5*Math.pow(10,(v/100)*3);
+function pal(){const s=getComputedStyle(document.documentElement);const g=k=>s.getPropertyValue(k).trim();
+  return{surface:g('--surface'),line:g('--line'),bar:g('--bar'),cmp:g('--cmp'),swap:g('--swap'),done:g('--done'),
+    wall:g('--wall'),mud:g('--mud'),visit:g('--visit'),open:g('--open'),path:g('--path'),start:g('--start'),end:g('--end'),ink:g('--ink')};}
+function sizeCanvas(c){const w=c.clientWidth,h=c.clientHeight,d=dpr();
+  if(c.width!==Math.round(w*d)||c.height!==Math.round(h*d)){c.width=Math.round(w*d);c.height=Math.round(h*d);}
+  const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);return{x,w,h};}
+const fmt=n=>n.toLocaleString('en-US');
+
+/* ============ SORTING ============ */
+const SORTS={
+  bubble:{name:'Bubble sort',best:'O(n)',avg:'O(n²)',worst:'O(n²)',space:'O(1)',stable:'Yes',note:'Swaps neighbours that are out of order and stops early when a full pass makes no swap.',gen:bubble},
+  insertion:{name:'Insertion sort',best:'O(n)',avg:'O(n²)',worst:'O(n²)',space:'O(1)',stable:'Yes',note:'Grows a sorted prefix by sliding each new value left into place. Very fast on nearly sorted input.',gen:insertion},
+  selection:{name:'Selection sort',best:'O(n²)',avg:'O(n²)',worst:'O(n²)',space:'O(1)',stable:'No',note:'Finds the smallest remaining value each pass. Few swaps, but it never exits early.',gen:selection},
+  merge:{name:'Merge sort',best:'O(n log n)',avg:'O(n log n)',worst:'O(n log n)',space:'O(n)',stable:'Yes',note:'Splits the array, sorts each half, then merges them. It writes values back instead of swapping.',gen:mergeSort},
+  quick:{name:'Quick sort',best:'O(n log n)',avg:'O(n log n)',worst:'O(n²)',space:'O(log n)',stable:'No',note:'Partitions around a pivot, the last element here. Sorted or reversed input triggers the worst case.',gen:quickSort},
+  heap:{name:'Heap sort',best:'O(n log n)',avg:'O(n log n)',worst:'O(n log n)',space:'O(1)',stable:'No',note:'Builds a max-heap, then repeatedly moves the largest value to the end.',gen:heapSort}
+};
+let A=[];
+function* swp(i,j){const t=A[i];A[i]=A[j];A[j]=t;yield{t:'swap',i,j};}
+function* bubble(){const n=A.length;for(let i=0;i<n-1;i++){let sw=false;for(let j=0;j<n-i-1;j++){yield{t:'cmp',i:j,j:j+1};if(A[j]>A[j+1]){yield*swp(j,j+1);sw=true;}}if(!sw)return;}}
+function* insertion(){for(let i=1;i<A.length;i++){let j=i;while(j>0){yield{t:'cmp',i:j-1,j};if(A[j-1]>A[j]){yield*swp(j-1,j);j--;}else break;}}}
+function* selection(){const n=A.length;for(let i=0;i<n-1;i++){let m=i;for(let j=i+1;j<n;j++){yield{t:'cmp',i:m,j};if(A[j]<A[m])m=j;}if(m!==i)yield*swp(i,m);}}
+function* mergeSort(l=0,r=A.length-1){
+  if(l>=r)return;const m=(l+r)>>1;yield*mergeSort(l,m);yield*mergeSort(m+1,r);
+  const L=A.slice(l,m+1),R=A.slice(m+1,r+1);let i=0,j=0,k=l;
+  while(i<L.length&&j<R.length){yield{t:'cmp',i:l+i,j:m+1+j};if(L[i]<=R[j])A[k]=L[i++];else A[k]=R[j++];yield{t:'set',i:k};k++;}
+  while(i<L.length){A[k]=L[i++];yield{t:'set',i:k};k++;}
+  while(j<R.length){A[k]=R[j++];yield{t:'set',i:k};k++;}
+}
+function* quickSort(l=0,r=A.length-1){
+  if(l>=r)return;const p=A[r];let i=l;
+  for(let j=l;j<r;j++){yield{t:'cmp',i:j,j:r};if(A[j]<p){if(i!==j)yield*swp(i,j);i++;}}
+  if(i!==r)yield*swp(i,r);
+  yield*quickSort(l,i-1);yield*quickSort(i+1,r);
+}
+function* sift(i,n){while(true){const l=2*i+1,r=l+1;let m=i;
+  if(l<n){yield{t:'cmp',i:l,j:m};if(A[l]>A[m])m=l;}
+  if(r<n){yield{t:'cmp',i:r,j:m};if(A[r]>A[m])m=r;}
+  if(m===i)return;yield*swp(i,m);i=m;}}
+function* heapSort(){const n=A.length;for(let i=(n>>1)-1;i>=0;i--)yield*sift(i,n);for(let e=n-1;e>0;e--){yield*swp(0,e);yield*sift(0,e);}}
+
+function makeArray(n,kind){
+  let a=Array.from({length:n},(_,i)=>i+1);
+  const shuf=()=>{for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}};
+  if(kind==='random')shuf();
+  else if(kind==='nearly'){for(let k=0;k<Math.max(1,Math.floor(n/12));k++){const i=Math.floor(Math.random()*n),j=Math.floor(Math.random()*n);[a[i],a[j]]=[a[j],a[i]];}}
+  else if(kind==='reversed')a.reverse();
+  else{const g=Math.max(1,Math.round(n/5));a=a.map(v=>Math.ceil(v/g)*g);shuf();}
+  return a;
+}
+const S={orig:[],gen:null,running:false,acc:0,cmp:0,wr:0,mark:null,finished:false,sweep:0,verified:null,dirty:true};
+function sortInit(newData){
+  const n=+$('sSize').value;
+  if(newData||!S.orig.length||S.orig.length!==n)S.orig=makeArray(n,$('sKind').value);
+  A=S.orig.slice();S.gen=SORTS[$('sAlgo').value].gen();
+  Object.assign(S,{running:false,acc:0,cmp:0,wr:0,mark:null,finished:false,sweep:0,verified:null,dirty:true});
+  $('sRun').textContent='Run';sortInfo();sortStats();
+}
+function sortInfo(){const m=SORTS[$('sAlgo').value];
+  $('sName').textContent=m.name;$('sNote').textContent=m.note;$('sBest').textContent=m.best;$('sAvg').textContent=m.avg;
+  $('sWorst').textContent=m.worst;$('sSpace').textContent=m.space;$('sStable').textContent=m.stable;}
+function sortStats(){
+  $('sCmp').textContent=fmt(S.cmp);$('sWr').textContent=fmt(S.wr);
+  const st=$('sStatus');st.className='status';
+  if(S.finished){st.textContent=S.verified?'Sorted and verified':'Not sorted';st.classList.add(S.verified?'ok':'bad');}
+  else st.textContent=S.running?'Running':(S.cmp?'Paused':'Ready');
+}
+function sortStep(){
+  if(S.finished)return false;
+  const r=S.gen.next();
+  if(r.done){S.running=false;S.finished=true;S.mark=null;S.sweep=0;S.verified=A.every((v,i)=>i===0||A[i-1]<=v);$('sRun').textContent='Run again';S.dirty=true;return false;}
+  const e=r.value;
+  if(e.t==='cmp')S.cmp++;else if(e.t==='swap')S.wr+=2;else S.wr++;
+  S.mark=e;S.dirty=true;return true;
+}
+function drawSort(){
+  const c=$('sortCv'),{x,w,h}=sizeCanvas(c),p=pal(),n=A.length;
+  x.fillStyle=p.surface;x.fillRect(0,0,w,h);
+  let mx=0;for(const v of A)if(v>mx)mx=v;
+  const bw=w/n,gap=bw>6?2:bw>3?1:0;
+  const m=S.mark;
+  for(let i=0;i<n;i++){
+    const bh=Math.max(2,(A[i]/mx)*(h-6));
+    let col=p.bar;
+    if(S.finished&&i<S.sweep)col=p.done;
+    else if(m){
+      if(m.t==='cmp'&&(i===m.i||i===m.j))col=p.cmp;
+      else if(m.t==='swap'&&(i===m.i||i===m.j))col=p.swap;
+      else if(m.t==='set'&&i===m.i)col=p.swap;
+    }
+    x.fillStyle=col;x.fillRect(i*bw,h-bh,Math.max(1,bw-gap),bh);
+  }
+  c.setAttribute('aria-label',SORTS[$('sAlgo').value].name+' on '+n+' values. '+fmt(S.cmp)+' comparisons so far.');
+}
+function tickSort(dt){
+  if(S.running){
+    S.acc+=sps(+$('sSpeed').value)*dt;const lim=performance.now()+10;
+    while(S.acc>=1){S.acc-=1;if(!sortStep())break;if(performance.now()>lim)break;}
+    sortStats();
+  }
+  if(S.finished&&S.sweep<A.length){S.sweep=Math.min(A.length,S.sweep+Math.max(1,A.length/45));S.dirty=true;}
+  if(S.dirty){drawSort();S.dirty=false;}
+}
+$('sRun').onclick=()=>{
+  if(S.finished)sortInit(false);
+  S.running=!S.running;$('sRun').textContent=S.running?'Pause':'Run';sortStats();
+};
+$('sStep').onclick=()=>{S.running=false;$('sRun').textContent='Run';sortStep();sortStats();};
+$('sReset').onclick=()=>sortInit(false);
+$('sNew').onclick=()=>sortInit(true);
+$('sAlgo').onchange=()=>sortInit(false);
+$('sKind').onchange=()=>sortInit(true);
+$('sSize').oninput=()=>{$('sSizeV').textContent=$('sSize').value;sortInit(true);};
+
+/* ============ PATHFINDING ============ */
+const PATHS={
+  bfs:{name:'Breadth-first search',note:'Expands outward in rings, so it finds the path with the fewest steps. It ignores mud.',time:'O(V + E)',opt:'Fewest steps',w:'No'},
+  dfs:{name:'Depth-first search',note:'Dives down one branch before backing up. It finds a path quickly but rarely a short one.',time:'O(V + E)',opt:'No',w:'No'},
+  dijkstra:{name:"Dijkstra's algorithm",note:'Always expands the cheapest known cell next, so it finds the lowest-cost path, mud included.',time:'O((V + E) log V)',opt:'Yes',w:'Yes'},
+  astar:{name:'A* search',note:'Dijkstra plus a Manhattan-distance guess toward the goal. Same optimal path, usually far fewer cells explored.',time:'Depends on heuristic',opt:'Yes',w:'Yes'},
+  greedy:{name:'Greedy best-first',note:'Chases the cell that looks closest to the goal. Fast, but walls and mud can trick it into a poor path.',time:'O(E log V)',opt:'No',w:'No'}
+};
+class Heap{constructor(){this.a=[];}
+  get size(){return this.a.length;}
+  push(k,v){const a=this.a;a.push([k,v]);let i=a.length-1;while(i>0){const p=(i-1)>>1;if(a[p][0]<=a[i][0])break;[a[p],a[i]]=[a[i],a[p]];i=p;}}
+  pop(){const a=this.a,top=a[0],last=a.pop();if(a.length){a[0]=last;let i=0;for(;;){let l=2*i+1,r=l+1,m=i;if(l<a.length&&a[l][0]<a[m][0])m=l;if(r<a.length&&a[r][0]<a[m][0])m=r;if(m===i)break;[a[m],a[i]]=[a[i],a[m]];i=m;}}return top;}}
+const G={cols:0,rows:0,cell:0,walls:null,vis:null,prev:null,start:0,end:0,mode:1,gen:null,running:false,acc:0,explored:0,found:null,path:[],cost:0,ms:0,dirty:true,drag:null,paintVal:1,last:-1,state:'idle'};
+function nbrs(i){const c=G.cols,r=G.rows,x=i%c,y=(i/c)|0,o=[];
+  if(y>0)o.push(i-c);if(x<c-1)o.push(i+1);if(y<r-1)o.push(i+c);if(x>0)o.push(i-1);return o;}
+const stepCost=i=>G.walls[i]===2?5:1;
+const hDist=i=>Math.abs((i%G.cols)-(G.end%G.cols))+Math.abs(((i/G.cols)|0)-((G.end/G.cols)|0));
+function* bfs(){const q=[G.start],seen=new Uint8Array(G.walls.length);seen[G.start]=1;G.vis[G.start]=1;
+  for(let h=0;h<q.length;h++){const cur=q[h];G.vis[cur]=2;yield 1;if(cur===G.end)return true;
+    for(const nb of nbrs(cur))if(!seen[nb]&&G.walls[nb]!==1){seen[nb]=1;G.prev[nb]=cur;G.vis[nb]=1;q.push(nb);}}
+  return false;}
+function* dfs(){const st=[G.start];
+  while(st.length){const cur=st.pop();if(G.vis[cur]===2)continue;G.vis[cur]=2;yield 1;if(cur===G.end)return true;
+    const ns=nbrs(cur).reverse();for(const nb of ns)if(G.vis[nb]!==2&&G.walls[nb]!==1){G.prev[nb]=cur;G.vis[nb]=1;st.push(nb);}}
+  return false;}
+function* best(mode){const dist=new Float64Array(G.walls.length).fill(Infinity),hp=new Heap();dist[G.start]=0;hp.push(0,G.start);G.vis[G.start]=1;
+  while(hp.size){const[,cur]=hp.pop();if(G.vis[cur]===2)continue;G.vis[cur]=2;yield 1;if(cur===G.end)return true;
+    for(const nb of nbrs(cur)){if(G.walls[nb]===1||G.vis[nb]===2)continue;
+      if(mode==='greedy'){if(G.vis[nb]===0){G.prev[nb]=cur;G.vis[nb]=1;hp.push(hDist(nb),nb);}continue;}
+      const nd=dist[cur]+stepCost(nb);
+      if(nd<dist[nb]){dist[nb]=nd;G.prev[nb]=cur;G.vis[nb]=1;hp.push(mode==='astar'?nd+hDist(nb):nd,nb);}}}
+  return false;}
+function makeGen(a){return a==='bfs'?bfs():a==='dfs'?dfs():best(a);}
+const PRUN={};
+function gridInit(){
+  const w=$('pathCv').parentElement.clientWidth-20;if(w<=0)return;
+  let cols=Math.floor(w/26);if(cols%2===0)cols--;cols=Math.max(15,Math.min(51,cols));
+  const rows=w<560?15:19;
+  if(cols===G.cols&&rows===G.rows)return;
+  G.cols=cols;G.rows=rows;const n=cols*rows;
+  G.walls=new Uint8Array(n);G.vis=new Uint8Array(n);G.prev=new Int32Array(n).fill(-1);
+  const mid=rows>>1;G.start=mid*cols+2;G.end=mid*cols+cols-3;
+  const wx=cols>>1;for(let y=1;y<rows-1;y++)if(y!==rows-3)G.walls[y*cols+wx]=1;
+  clearRun();
+}
+function sizePathCanvas(){
+  const c=$('pathCv');const w=c.parentElement.clientWidth-20;if(w<=0||!G.cols)return;
+  G.cell=w/G.cols;c.style.height=(G.cell*G.rows)+'px';
+}
+function clearRun(){
+  G.vis.fill(0);G.prev.fill(-1);G.gen=null;G.running=false;G.acc=0;G.explored=0;G.found=null;G.path=[];G.cost=0;G.ms=0;G.state='idle';G.dirty=true;
+  $('pRun').textContent='Run';pathStats();
+}
+function pathInfo(){const m=PATHS[$('pAlgo').value];
+  $('pName').textContent=m.name;$('pNote').textContent=m.note;$('pTimeC').textContent=m.time;$('pOpt').textContent=m.opt;$('pW').textContent=m.w;}
+function pathStats(){
+  $('pExp').textContent=fmt(G.explored);
+  $('pLen').textContent=G.found?fmt(G.path.length-1):'-';
+  $('pCost').textContent=G.found?fmt(G.cost):'-';
+  $('pTime').textContent=G.state==='done'?(G.ms<0.01?'<0.01':G.ms.toFixed(2)):'-';
+  const st=$('pStatus');st.className='status';
+  if(G.state==='done'){st.textContent=G.found?'Path found':'No path';st.classList.add(G.found?'ok':'bad');}
+  else st.textContent=G.running?'Running':(G.state==='paused'?'Paused':'Ready');
+}
+function buildPath(){
+  const p=[];let cur=G.end,cost=0;
+  while(cur!==-1&&cur!==G.start){p.push(cur);cost+=stepCost(cur);cur=G.prev[cur];}
+  p.push(G.start);p.reverse();G.path=p;G.cost=cost;
+}
+function pathStepOnce(){
+  if(G.state==='done')return false;
+  if(!G.gen){G.gen=makeGen($('pAlgo').value);G.ms=0;}
+  const t0=performance.now();const r=G.gen.next();G.ms+=performance.now()-t0;
+  if(r.done){G.running=false;G.state='done';G.found=!!r.value;if(G.found)buildPath();$('pRun').textContent='Run again';G.dirty=true;pathStats();return false;}
+  G.explored++;G.dirty=true;return true;
+}
+function drawGrid(){
+  const c=$('pathCv'),{x,w,h}=sizeCanvas(c),p=pal();if(!G.cols)return;
+  const cs=w/G.cols;x.fillStyle=p.surface;x.fillRect(0,0,w,h);
+  for(let i=0;i<G.walls.length;i++){
+    const px=(i%G.cols)*cs,py=((i/G.cols)|0)*cs,wl=G.walls[i];
+    if(wl===1){x.fillStyle=p.wall;x.fillRect(px,py,cs,cs);continue;}
+    if(wl===2){x.fillStyle=p.mud;x.fillRect(px,py,cs,cs);}
+    const v=G.vis[i];
+    if(v){x.globalAlpha=wl===2?.6:1;x.fillStyle=v===2?p.visit:p.open;x.fillRect(px,py,cs,cs);x.globalAlpha=1;}
+  }
+  x.strokeStyle=p.line;x.lineWidth=1;x.globalAlpha=.7;x.beginPath();
+  for(let i=0;i<=G.cols;i++){x.moveTo(i*cs,0);x.lineTo(i*cs,h);}
+  for(let j=0;j<=G.rows;j++){x.moveTo(0,j*cs);x.lineTo(w,j*cs);}
+  x.stroke();x.globalAlpha=1;
+  if(G.path.length>1){x.strokeStyle=p.path;x.lineWidth=Math.max(3,cs*.34);x.lineCap='round';x.lineJoin='round';x.beginPath();
+    G.path.forEach((i,k)=>{const px=(i%G.cols+.5)*cs,py=(((i/G.cols)|0)+.5)*cs;k?x.lineTo(px,py):x.moveTo(px,py);});x.stroke();}
+  const dot=(i,col)=>{const px=(i%G.cols+.5)*cs,py=(((i/G.cols)|0)+.5)*cs;x.fillStyle=col;x.beginPath();x.arc(px,py,cs*.38,0,7);x.fill();
+    x.strokeStyle=p.surface;x.lineWidth=2;x.stroke();};
+  dot(G.start,p.start);dot(G.end,p.end);
+  c.setAttribute('aria-label',PATHS[$('pAlgo').value].name+' on a '+G.cols+' by '+G.rows+' grid. '+fmt(G.explored)+' cells explored.');
+}
+function tickPath(dt){
+  if(!G.cols){gridInit();sizePathCanvas();}
+  if(G.running){
+    G.acc+=sps(+$('pSpeed').value)*dt;const lim=performance.now()+10;
+    while(G.acc>=1){G.acc-=1;if(!pathStepOnce())break;if(performance.now()>lim)break;}
+    pathStats();
+  }
+  if(G.dirty){drawGrid();G.dirty=false;}
+}
+function cellAt(e){const r=$('pathCv').getBoundingClientRect();
+  const x=Math.floor((e.clientX-r.left)/r.width*G.cols),y=Math.floor((e.clientY-r.top)/r.height*G.rows);
+  if(x<0||y<0||x>=G.cols||y>=G.rows)return -1;return y*G.cols+x;}
+function applyCell(i){
+  if(i<0)return;
+  if(G.drag==='start'){if(i!==G.end&&G.walls[i]!==1)G.start=i;}
+  else if(G.drag==='end'){if(i!==G.start&&G.walls[i]!==1)G.end=i;}
+  else if(i!==G.start&&i!==G.end)G.walls[i]=G.paintVal;
+  G.dirty=true;
+}
+function applyLine(a,b){
+  if(a<0||a===b){applyCell(b);return;}
+  const ax=a%G.cols,ay=(a/G.cols)|0,bx=b%G.cols,by=(b/G.cols)|0,n=Math.max(Math.abs(bx-ax),Math.abs(by-ay),1);
+  for(let k=1;k<=n;k++)applyCell(Math.round(ay+(by-ay)*k/n)*G.cols+Math.round(ax+(bx-ax)*k/n));
+}
+const pcv=$('pathCv');
+pcv.addEventListener('pointerdown',e=>{
+  if(G.running)return;const i=cellAt(e);if(i<0)return;
+  if(G.state!=='idle')clearRun();
+  pcv.setPointerCapture(e.pointerId);
+  if(i===G.start)G.drag='start';else if(i===G.end)G.drag='end';
+  else{G.drag='paint';G.paintVal=G.mode;if(G.mode!==0&&G.walls[i]===G.mode)G.paintVal=0;}
+  G.last=i;applyCell(i);
+});
+pcv.addEventListener('pointermove',e=>{if(!G.drag)return;const i=cellAt(e);if(i<0||i===G.last)return;
+  if(G.drag==='paint')applyLine(G.last,i);else applyCell(i);G.last=i;});
+const endDrag=()=>{G.drag=null;G.last=-1;};
+pcv.addEventListener('pointerup',endDrag);pcv.addEventListener('pointercancel',endDrag);
+
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{
+  G.mode=+b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(o=>o.setAttribute('aria-pressed',o===b?'true':'false'));});
+$('pRun').onclick=()=>{
+  if(G.state==='done')clearRun();
+  G.running=!G.running;G.state=G.running?'running':'paused';$('pRun').textContent=G.running?'Pause':'Run';pathStats();
+};
+$('pStep').onclick=()=>{if(G.state==='done')clearRun();G.running=false;G.state='paused';$('pRun').textContent='Run';pathStepOnce();pathStats();};
+$('pClear').onclick=clearRun;
+$('pAlgo').onchange=()=>{pathInfo();clearRun();};
+$('pWipe').onclick=()=>{G.walls.fill(0);clearRun();};
+$('pRandom').onclick=()=>{clearRun();for(let i=0;i<G.walls.length;i++)G.walls[i]=(i!==G.start&&i!==G.end&&Math.random()<.27)?1:0;G.dirty=true;};
+$('pMaze').onclick=()=>{
+  clearRun();const c=G.cols,r=G.rows;G.walls.fill(1);
+  const st=[[1,1]];G.walls[c+1]=0;
+  while(st.length){const[x,y]=st[st.length-1];const o=[[2,0],[-2,0],[0,2],[0,-2]].filter(([dx,dy])=>{const nx=x+dx,ny=y+dy;return nx>0&&ny>0&&nx<c-1&&ny<r-1&&G.walls[ny*c+nx]===1;});
+    if(!o.length){st.pop();continue;}const[dx,dy]=o[Math.floor(Math.random()*o.length)];
+    G.walls[(y+dy/2)*c+x+dx/2]=0;G.walls[(y+dy)*c+x+dx]=0;st.push([x+dx,y+dy]);}
+  G.start=c+1;G.end=(r-2)*c+(c-2);G.dirty=true;
+};
+$('pCompare').onclick=()=>{
+  if(G.running){G.running=false;$('pRun').textContent='Run';}
+  clearRun();const rows=[];
+  for(const k of Object.keys(PATHS)){
+    G.vis.fill(0);G.prev.fill(-1);const t0=performance.now();let n=0,f=false;const g=makeGen(k);
+    for(;;){const r=g.next();if(r.done){f=!!r.value;break;}n++;}
+    const ms=performance.now()-t0;let len=null,cost=null;
+    if(f){buildPath();len=G.path.length-1;cost=G.cost;}
+    rows.push({k,n,len,cost,ms});
+  }
+  clearRun();
+  const costs=rows.filter(r=>r.cost!==null).map(r=>r.cost),mn=costs.length?Math.min(...costs):null;
+  const wrap=$('cmpWrap');
+  wrap.hidden=false;
+  wrap.innerHTML='<table><thead><tr><th>Algorithm</th><th>Explored</th><th>Path length</th><th>Path cost</th><th>Time (ms)</th><th>Result</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr><td>'+PATHS[r.k].name+'</td><td>'+fmt(r.n)+'</td><td>'+(r.len===null?'-':fmt(r.len))+'</td><td>'+(r.cost===null?'-':fmt(r.cost))+'</td><td>'+(r.ms<0.01?'&lt;0.01':r.ms.toFixed(2))+'</td><td class="'+(r.cost===mn&&mn!==null?'opt':'')+'">'+(r.cost===null?'No path':(r.cost===mn?'Lowest cost':'+'+(r.cost-mn)+' cost'))+'</td></tr>').join('')+'</tbody></table>';
+};
+
+/* ============ ROUTING + LOOP ============ */
+let view='sorting';
+function route(target){
+  view=(target||(location.hash==='#pathfinding'?'pathfinding':'sorting'));
+  $('panel-sorting').hidden=view!=='sorting';$('panel-pathfinding').hidden=view!=='pathfinding';
+  ['sorting','pathfinding'].forEach(v=>{const a=$('tab-'+v);if(v===view)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+  if(view==='pathfinding'){gridInit();sizePathCanvas();G.dirty=true;}else S.dirty=true;
+}
+function redraw(){S.dirty=true;G.dirty=true;}
+window.addEventListener('hashchange',()=>route());
+['sorting','pathfinding'].forEach(v=>$('tab-'+v).addEventListener('click',e=>{
+  e.preventDefault();try{location.hash=v;}catch(_){}route(v);}));
+window.addEventListener('resize',()=>{if(view==='pathfinding'){gridInit();sizePathCanvas();}redraw();});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',redraw);
+new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+let last=performance.now();
+function frame(t){const dt=Math.min(.05,(t-last)/1000);last=t;
+  if(view==='sorting')tickSort(dt);else tickPath(dt);requestAnimationFrame(frame);}
+sortInit(true);pathInfo();route();requestAnimationFrame(frame);
+})();
+</script>
