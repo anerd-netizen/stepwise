@@ -2,7 +2,7 @@
 
 An interactive visualizer for sorting and pathfinding algorithms. Watch each algorithm work one step at a time, with live counts of the work it does.
 
-**Live demo:** `https://anred-netizen.github.io/stepwise/`
+**Live demo:** `https://anerd-netizen.github.io/stepwise/`
 
 ## Features
 
